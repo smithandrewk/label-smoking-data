@@ -19,7 +19,6 @@ if not os.path.exists(f'{DATA_PATH}/0_raw'):
 
 if not os.path.exists(f'{DATA_PATH}/1_labeled'):
     os.makedirs(f'{DATA_PATH}/1_labeled')
-    raise FileNotFoundError
 
 PROJECTS_DIR = f'{DATA_PATH}/0_raw'
 PROJECTS = sorted([PROJECT for PROJECT in os.listdir(PROJECTS_DIR) if os.path.isdir(f'{PROJECTS_DIR}/{PROJECT}')])
