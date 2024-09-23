@@ -24,7 +24,7 @@ if not os.path.exists(f'{DATA_PATH}/1_labeled'):
 PROJECTS_DIR = f'{DATA_PATH}/0_raw'
 PROJECTS = sorted([PROJECT for PROJECT in os.listdir(PROJECTS_DIR) if os.path.isdir(f'{PROJECTS_DIR}/{PROJECT}')])
 LABELS_DIR = f'{DATA_PATH}/1_labeled'
-DECIMATION_FACTOR = 50
+DECIMATION_FACTOR = 25
 RESTRICT_VIEW_TO_CURRENT_RECORDING = True
 
 regions = None
@@ -191,13 +191,10 @@ def update_xlim(relayout_data):
 @app.callback(
     Output('graph', 'figure', allow_duplicate=True),
     [Input('write-button', 'n_clicks')],
-    [State('graph', 'relayoutData'),
-     State('project-dropdown', 'value'),
-     State('recording-dropdown', 'value'),
-     State('graph', 'clickData')],
+    State('graph', 'relayoutData'),
     prevent_initial_call=True
 )
-def write_region(write_n_clicks, relayout_data, selected_project, selected_recording, click_data):
+def write_region(write_n_clicks, relayout_data):
     global acceleration, DECIMATION_FACTOR, regions
     if acceleration is None:
         return go.Figure()
@@ -211,17 +208,10 @@ def write_region(write_n_clicks, relayout_data, selected_project, selected_recor
                 xlim_start = relayout_data['xaxis.range[0]']
                 xlim_end = relayout_data['xaxis.range[1]']
             else:
+                print('using accel timestamps')
                 xlim_start = acceleration.timestamp.iloc[0]
                 xlim_end = acceleration.timestamp.iloc[-1]
 
-            xlim_start_text = str(xlim_start).replace(' ', '-').replace(':', '-')
-            if '.' in xlim_start_text:
-                xlim_start_text = "".join(xlim_start_text.split('.')[:-1])
-            xlim_end_text = str(xlim_end).replace(' ', '-').replace(':', '-')
-            if '.' in xlim_end_text:
-                xlim_end_text = "".join(xlim_end_text.split('.')[:-1])
-
-            acceleration[(acceleration.timestamp > xlim_start) & (acceleration.timestamp < xlim_end)].to_csv(f'{LABELS_DIR}/{selected_project}/{xlim_start_text}_{xlim_end_text}.csv', index=False)
             region = {'start': str(xlim_start), 'end': str(xlim_end)}
             regions.append(region)
 
@@ -274,6 +264,7 @@ def add_smoking_label(n_clicks,relayout_data):
             labels.append(label)
 
             return create_figure(acceleration)
+        
 @app.callback(
     Output('graph', 'figure', allow_duplicate=True),
     Input('delete-button', 'n_clicks'),
@@ -293,9 +284,14 @@ def delete_smoking_label(n_clicks,relayout_data):
                 xlim_end = relayout_data['xaxis.range[1]']
 
             labels_to_delete = [label for label in labels if xlim_start > label['start'] and xlim_end < label['end']]
+            regions_to_delete = [region for region in regions if xlim_start > region['start'] and xlim_end < region['end']]
+
             if len(labels_to_delete) == 1:
                 label_to_delete = labels_to_delete[0]
                 labels.remove(label_to_delete)
+            elif len(regions_to_delete) == 1:
+                region_to_delete = regions_to_delete[0]
+                regions.remove(region_to_delete)
             return create_figure(acceleration)
         
 @app.callback(
