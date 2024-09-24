@@ -1,1 +1,1 @@
-DATA_PATH = f'../data'
+DATA_PATH = f'/home/andrew/smoking/data'

@@ -30,6 +30,9 @@ regions = None
 regions_path = None
 labels = None
 labels_path = None
+self_report_labels=None
+self_report_labels_path=None
+
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 def load_recordings_for_project(project):
@@ -52,7 +55,7 @@ def update_acceleration_timestamps(acceleration, selected_recording):
     return acceleration
 
 def create_figure(acceleration):
-    global regions,labels
+    global regions,labels,self_report_labels
     figure = go.Figure(data=[
         go.Scatter(x=acceleration['timestamp'].iloc[::DECIMATION_FACTOR], y=acceleration['x'].iloc[::DECIMATION_FACTOR], mode='lines', name='X-axis'),
         go.Scatter(x=acceleration['timestamp'].iloc[::DECIMATION_FACTOR], y=acceleration['y'].iloc[::DECIMATION_FACTOR], mode='lines', name='Y-axis'),
@@ -79,11 +82,18 @@ def create_figure(acceleration):
             figure.add_shape(type='rect',
                              x0=label['start'], x1=label['end'],
                              y0=-40, y1=40,
-                             line=dict(color='Red'),
-                             fillcolor='pink',
+                             line=dict(color='Green'),
+                             fillcolor='lightgreen',
                              opacity=0.3,
                              layer='below',
                              name=str(i))
+    if self_report_labels:
+        for self_report_label in self_report_labels:
+            if RESTRICT_VIEW_TO_CURRENT_RECORDING:
+                if self_report_label < acceleration.timestamp[0] or self_report_label > acceleration.timestamp.iloc[-1]:
+                    continue
+            figure.add_vline(x=self_report_label, line_dash="dash", line_color="red")
+
     return figure
 
 app.layout = dbc.Container([
@@ -98,11 +108,11 @@ app.layout = dbc.Container([
                 ),
                 html.Label('Select Recording:'),
                 dcc.Dropdown(id='recording-dropdown'),
-                dbc.Button('Write Region', id='write-button', n_clicks=0, className='mt-2'),
-                dbc.Button('Smoking', id='smoking-button', n_clicks=0, className='mt-2',color='success'),
+                dbc.Button('Write Training Region', id='write-button', n_clicks=0, className='mt-2'),
+                dbc.Button('Write Smoking', id='smoking-button', n_clicks=0, className='mt-2',color='success'),
                 dbc.Button('Save Regions and Labels', id='save-button', n_clicks=0, className='mt-2',color='info'),
                 dbc.Button('Toggle View All Regions and Labels', id='toggle-button', n_clicks=0, className='mt-2',color='secondary'),
-                dbc.Button('Delete Smoking Bout', id='delete-button', n_clicks=0, className='mt-2',color='danger'),
+                dbc.Button('Delete Region or Bout', id='delete-button', n_clicks=0, className='mt-2',color='danger'),
             ], vertical=True, pills=True, style={"margin": "20px"})
             
         ], width=2),
@@ -130,11 +140,11 @@ acceleration = None
     Input('project-dropdown', 'value'),
 )
 def on_change_project_set_recording_options(selected_project):
-    global regions,regions_path,labels,labels_path
+    global regions,regions_path,labels,labels_path,self_report_labels,self_report_labels_path
 
     regions_path = f'{LABELS_DIR}/{selected_project}/regions.json'
     labels_path = f'{LABELS_DIR}/{selected_project}/labels.json'
-
+    self_report_labels_path = f'/home/andrew/smoking/data/labels/{selected_project}.csv'
     if not os.path.isdir(f'{LABELS_DIR}/{selected_project}'):
         os.makedirs(f'{LABELS_DIR}/{selected_project}')
 
@@ -149,6 +159,13 @@ def on_change_project_set_recording_options(selected_project):
             labels = json.load(f)
     else:
         labels = []
+
+    if os.path.isfile(self_report_labels_path):
+        self_report_labels = pd.read_csv(self_report_labels_path,header=None).T.stack().reset_index(drop=True)
+        self_report_labels = self_report_labels.to_list()
+        self_report_labels = [datetime.datetime.strptime(f"{time_str}", "%m/%d/%Y %H:%M:%S") for time_str in self_report_labels]
+    else:
+        self_report_labels = []
 
     return load_recordings_for_project(selected_project)
 
