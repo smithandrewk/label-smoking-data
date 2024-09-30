@@ -22,8 +22,9 @@ if not os.path.exists(f'{DATA_PATH}/1_labeled'):
 
 PROJECTS_DIR = f'{DATA_PATH}/0_raw'
 PROJECTS = sorted([PROJECT for PROJECT in os.listdir(PROJECTS_DIR) if os.path.isdir(f'{PROJECTS_DIR}/{PROJECT}')])
+print(PROJECTS)
 LABELS_DIR = f'{DATA_PATH}/1_labeled'
-DECIMATION_FACTOR = 25
+DECIMATION_FACTOR = 50
 RESTRICT_VIEW_TO_CURRENT_RECORDING = True
 
 regions = None
@@ -36,6 +37,7 @@ self_report_labels_path=None
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 def load_recordings_for_project(project):
+    print(f'loading recordings for {project}')
     project_dir = f'{PROJECTS_DIR}/{project}'
     recordings = sorted([RECORDING for RECORDING in os.listdir(project_dir) if os.path.isdir(f'{project_dir}/{RECORDING}')])
     return [{'label': recording, 'value': recording} for recording in recordings]
@@ -140,6 +142,7 @@ acceleration = None
     Input('project-dropdown', 'value'),
 )
 def on_change_project_set_recording_options(selected_project):
+    print(selected_project)
     global regions,regions_path,labels,labels_path,self_report_labels,self_report_labels_path
 
     regions_path = f'{LABELS_DIR}/{selected_project}/regions.json'
