@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+*.db
+data/recordings/
+data/models/
+**/data/recordings/
+**/data/models/
+*.parquet
+node_modules/
+frontend/dist/
+.vite/
+venv/
