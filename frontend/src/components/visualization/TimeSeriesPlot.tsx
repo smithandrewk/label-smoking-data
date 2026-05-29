@@ -1,14 +1,59 @@
-import { useCallback, useRef } from 'react';
-// Plotly is loaded as a global from a <script> tag in index.html.
-// See the comment there for why we bypass bundler interop entirely.
-import createPlotlyComponent from 'react-plotly.js/factory';
+import { useCallback, useEffect, useRef } from 'react';
 import type { RecordingData, Annotation, LabelDef } from '../../types';
 import { useAppStore } from '../../store';
 
+// Plotly is loaded as a global from a <script> tag in index.html.
+// We tried react-plotly.js three times and Rolldown mangled it three
+// times — so we wrap window.Plotly ourselves. Plotly.react does an
+// efficient in-place diff/update so this is functionally equivalent
+// to react-plotly.js for our use.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare global { interface Window { Plotly: any } }
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Plot = createPlotlyComponent(window.Plotly) as any;
+
+interface PlotProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  layout: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  config?: any;
+  style?: React.CSSProperties;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onClick?: (event: any) => void;
+}
+
+function Plot({ data, layout, config, style, onClick }: PlotProps) {
+  const divRef = useRef<HTMLDivElement>(null);
+  const onClickRef = useRef(onClick);
+  onClickRef.current = onClick;
+
+  useEffect(() => {
+    const el = divRef.current;
+    if (!el || !window.Plotly) return;
+    window.Plotly.react(el, data, layout, config);
+    // Plotly's plotly_click event delivers a similar event shape to
+    // react-plotly.js's onClick (with .points). We re-attach on every
+    // render so the latest handler closure runs.
+    // Plotly augments the host div with .on / .removeAllListeners.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const elx = el as any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handler = (e: any) => onClickRef.current?.(e);
+    elx.on?.('plotly_click', handler);
+    return () => {
+      elx.removeAllListeners?.('plotly_click');
+    };
+  }, [data, layout, config]);
+
+  useEffect(() => {
+    const el = divRef.current;
+    return () => {
+      if (el && window.Plotly) window.Plotly.purge(el);
+    };
+  }, []);
+
+  return <div ref={divRef} style={style} />;
+}
 
 interface Props {
   data: RecordingData;
@@ -35,7 +80,6 @@ export function TimeSeriesPlot({
   onAddAnnotation,
 }: Props) {
   const { activeLabel, pendingAnnotation, setPendingAnnotation } = useAppStore();
-  const plotRef = useRef<any>(null);
 
   const t0 = data.timestamps[0] || 0;
   const timeSeconds = data.timestamps.map((t) => (t - t0) / 1e9);
@@ -130,7 +174,6 @@ export function TimeSeriesPlot({
       style={{ cursor: activeLabel ? 'crosshair' : 'default' }}
     >
       <Plot
-        ref={plotRef}
         data={traces}
         layout={{
           autosize: true,
@@ -165,7 +208,6 @@ export function TimeSeriesPlot({
           modeBarButtonsToRemove: ['lasso2d', 'select2d'],
         }}
         style={{ width: '100%' }}
-        useResizeHandler
         onClick={activeLabel ? handleClick : handleShapeClick}
       />
     </div>
