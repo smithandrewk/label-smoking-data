@@ -80,24 +80,25 @@ test('label-app smoke: SPA mounts, dataset navigates, Plotly renders', async ({ 
   await expect(page.getByRole('heading', { name: 'Label Tool', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Datasets' })).toBeVisible();
 
-  // 2. Bundle hash check — current build is `index-CvyWzt28.js` (adds the
-  // "Sync from nesso" button to RecordingView).
+  // 2. Bundle hash check — current build is `index-B6O251Us.js` (adds the
+  // NessoImporter component to the sidebar's "Import" tab).
   // Round-1 build was `index-DvIZqgSz.js` (slot-swap bug),
   // Round-2 was `index-C81d9LAA.js` (ternary fold bug),
   // Round-3 was `index-Cb-hrg5U.js` (still had react-plotly.js wrapper bug),
   // Round-4 was `index-DLWr2YGZ.js` (window.Plotly.react/purge rewrite).
+  // Round-5 was `index-CvyWzt28.js` (added "Sync from nesso" button).
   // Confirm at least one /assets/index-*.js loaded, none match the old hashes,
   // and the new hash is present.
   const indexBundles = scriptSrcs.filter((s) => /\/assets\/index-[A-Za-z0-9_-]+\.js/.test(s));
   expect(indexBundles, `expected an /assets/index-*.js bundle to load, got: ${scriptSrcs.join(', ')}`)
     .not.toHaveLength(0);
   const oldBundles = indexBundles.filter((s) =>
-    /\/assets\/index-(DvIZqgSz|C81d9LAA|Cb-hrg5U|DLWr2YGZ)\.js/.test(s),
+    /\/assets\/index-(DvIZqgSz|C81d9LAA|Cb-hrg5U|DLWr2YGZ|CvyWzt28)\.js/.test(s),
   );
   expect(oldBundles, `old bundle still being served: ${oldBundles.join(', ')}`)
     .toHaveLength(0);
-  const newBundles = indexBundles.filter((s) => /\/assets\/index-CvyWzt28\.js/.test(s));
-  expect(newBundles, `expected new index-CvyWzt28.js bundle, got: ${indexBundles.join(', ')}`)
+  const newBundles = indexBundles.filter((s) => /\/assets\/index-B6O251Us\.js/.test(s));
+  expect(newBundles, `expected new index-B6O251Us.js bundle, got: ${indexBundles.join(', ')}`)
     .not.toHaveLength(0);
   console.log('Bundle(s) loaded:', newBundles.join(', '));
 

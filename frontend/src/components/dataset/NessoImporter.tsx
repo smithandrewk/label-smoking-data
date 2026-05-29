@@ -55,10 +55,15 @@ export function NessoImporter() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['datasets'] });
       queryClient.invalidateQueries({ queryKey: ['recordings'] });
+      // Select the new dataset immediately so it's the active selection
+      // once the user lands on the Datasets tab.
       setSelectedDataset(result.dataset_id);
       setSelectedRecording(null);
-      setSidebarView('datasets');
       setName('');
+      // Delay the sidebar swap so the inline success banner has a tick
+      // to paint before this component unmounts. Without the delay the
+      // user sees no acknowledgement that the import succeeded.
+      window.setTimeout(() => setSidebarView('datasets'), 1500);
     },
   });
 
