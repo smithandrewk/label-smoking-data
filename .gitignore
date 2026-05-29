@@ -11,3 +11,7 @@ node_modules/
 frontend/dist/
 .vite/
 venv/
+e2e/playwright-report/
+e2e/test-results/
+e2e/blob-report/
+e2e/.playwright/

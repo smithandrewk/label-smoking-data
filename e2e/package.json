@@ -1,0 +1,12 @@
+{
+  "name": "label-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Playwright smoke test for the label-app deployed on bigmac",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}
