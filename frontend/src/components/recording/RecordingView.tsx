@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRecording, getRecordingData, listRecordings, syncNessoLabels } from '../../api/recordings';
-import { listAnnotations, createAnnotation, deleteAnnotation } from '../../api/annotations';
+import { listAnnotations, createAnnotation, deleteAnnotation, updateAnnotation } from '../../api/annotations';
 import { getProject, updateProject } from '../../api/projects';
 import { useAppStore } from '../../store';
 import { TimeSeriesPlot } from '../visualization/TimeSeriesPlot';
@@ -22,6 +22,9 @@ export function RecordingView({ recordingId }: Props) {
   const [plotFullscreen, setPlotFullscreen] = useState(false);
   // Vim-style two-press confirm for `d` delete.
   const [pendingDelete, setPendingDelete] = useState(false);
+  // Current chart x-axis viewport (seconds since recording start), updated
+  // by TimeSeriesPlot on zoom/pan. Used to compute the bulk-relabel target.
+  const [viewport, setViewport] = useState<{ start: number; end: number } | null>(null);
   const queryClient = useQueryClient();
 
   // Get the project to use — default to __imported__ if no project selected
@@ -211,6 +214,50 @@ export function RecordingView({ recordingId }: Props) {
     },
   });
 
+  // Annotations whose midpoint falls in the current viewport AND whose
+  // label_name is not the active label (the targets of a bulk relabel).
+  const t0 = recordingData?.timestamps[0] || 0;
+  const visibleRelabelTargets = useMemo(() => {
+    if (!viewport || !activeLabel || !annotations) return [] as Annotation[];
+    return annotations.filter((a) => {
+      const midSec = ((a.start_ns + a.end_ns) / 2 - t0) / 1e9;
+      return (
+        midSec >= viewport.start &&
+        midSec <= viewport.end &&
+        a.label_name !== activeLabel.name
+      );
+    });
+  }, [annotations, viewport, activeLabel, t0]);
+
+  const bulkRelabelMutation = useMutation({
+    mutationFn: async ({ ids, label }: { ids: number[]; label: string }) => {
+      await Promise.all(
+        ids.map((id) => updateAnnotation(id, { label_name: label })),
+      );
+      return ids.length;
+    },
+    onSuccess: () => {
+      setMutationError(null);
+      queryClient.invalidateQueries({ queryKey: ['annotations'] });
+    },
+    onError: (err) => {
+      setMutationError(`Bulk relabel failed: ${(err as Error).message}`);
+    },
+  });
+
+  const handleBulkRelabel = useCallback(() => {
+    if (!activeLabel || visibleRelabelTargets.length === 0) return;
+    const n = visibleRelabelTargets.length;
+    const confirmed = window.confirm(
+      `Relabel ${n} visible bout${n === 1 ? '' : 's'} to "${activeLabel.name}"?\n\nMirrors to nesso for any nesso-imported recording.`,
+    );
+    if (!confirmed) return;
+    bulkRelabelMutation.mutate({
+      ids: visibleRelabelTargets.map((a) => a.id),
+      label: activeLabel.name,
+    });
+  }, [activeLabel, visibleRelabelTargets, bulkRelabelMutation]);
+
   // Nesso-imported recordings expose their origin in metadata. We show
   // the "Sync from nesso" button only for those — non-nesso datasets
   // (smoking-detection etc.) don't have a device_id to pull from.
@@ -381,6 +428,24 @@ export function RecordingView({ recordingId }: Props) {
                     {syncNessoMutation.isPending ? 'Syncing…' : '⇣ Sync from nesso'}
                   </button>
                 )}
+                {activeLabel && visibleRelabelTargets.length > 0 && (
+                  <button
+                    className="btn btn-sm"
+                    data-testid="bulk-relabel"
+                    disabled={bulkRelabelMutation.isPending}
+                    style={{
+                      background: activeLabel.color + '22',
+                      borderColor: activeLabel.color,
+                      color: '#1f2937',
+                    }}
+                    title={`Relabel ${visibleRelabelTargets.length} visible bouts to "${activeLabel.name}"`}
+                    onClick={handleBulkRelabel}
+                  >
+                    {bulkRelabelMutation.isPending
+                      ? `Relabeling ${visibleRelabelTargets.length}…`
+                      : `Relabel ${visibleRelabelTargets.length} visible → ${activeLabel.name}`}
+                  </button>
+                )}
                 {syncStatus && (
                   <span
                     data-testid="sync-status"
@@ -429,6 +494,7 @@ export function RecordingView({ recordingId }: Props) {
               selectedAnnotationId={selectedAnnotationId}
               onSelectAnnotation={setSelectedAnnotationId}
               onAddAnnotation={handleAddAnnotation}
+              onViewportChange={(start, end) => setViewport({ start, end })}
             />
           </div>
         ) : null}

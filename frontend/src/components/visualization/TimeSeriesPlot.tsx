@@ -20,28 +20,47 @@ interface PlotProps {
   style?: React.CSSProperties;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onClick?: (event: any) => void;
+  onViewportChange?: (start: number, end: number) => void;
 }
 
-function Plot({ data, layout, config, style, onClick }: PlotProps) {
+function Plot({ data, layout, config, style, onClick, onViewportChange }: PlotProps) {
   const divRef = useRef<HTMLDivElement>(null);
   const onClickRef = useRef(onClick);
+  const onViewportChangeRef = useRef(onViewportChange);
   onClickRef.current = onClick;
+  onViewportChangeRef.current = onViewportChange;
 
   useEffect(() => {
     const el = divRef.current;
     if (!el || !window.Plotly) return;
     window.Plotly.react(el, data, layout, config);
-    // Plotly's plotly_click event delivers a similar event shape to
-    // react-plotly.js's onClick (with .points). We re-attach on every
-    // render so the latest handler closure runs.
     // Plotly augments the host div with .on / .removeAllListeners.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const elx = el as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handler = (e: any) => onClickRef.current?.(e);
-    elx.on?.('plotly_click', handler);
+    const clickHandler = (e: any) => onClickRef.current?.(e);
+    elx.on?.('plotly_click', clickHandler);
+
+    // Emit the current viewport on relayout (zoom, pan, doubleclick) and
+    // once on first mount so the parent has a baseline range.
+    const emitViewport = () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const layoutNow = (el as any)?._fullLayout;
+      const range = layoutNow?.xaxis?.range;
+      if (Array.isArray(range) && range.length === 2 && onViewportChangeRef.current) {
+        onViewportChangeRef.current(Number(range[0]), Number(range[1]));
+      }
+    };
+    elx.on?.('plotly_relayout', emitViewport);
+    elx.on?.('plotly_doubleclick', emitViewport);
+    // Initial range on next tick (after Plotly has finished _fullLayout).
+    const initTimer = window.setTimeout(emitViewport, 50);
+
     return () => {
+      window.clearTimeout(initTimer);
       elx.removeAllListeners?.('plotly_click');
+      elx.removeAllListeners?.('plotly_relayout');
+      elx.removeAllListeners?.('plotly_doubleclick');
     };
   }, [data, layout, config]);
 
@@ -62,6 +81,9 @@ interface Props {
   selectedAnnotationId: number | null;
   onSelectAnnotation: (id: number | null) => void;
   onAddAnnotation: (startSec: number, endSec: number) => void;
+  // Notifies parent of the chart's current x-axis viewport (seconds
+  // since recording start). Fires on first render and on every zoom/pan.
+  onViewportChange?: (startSec: number, endSec: number) => void;
 }
 
 const CHANNEL_COLORS = ['#4a9eff', '#ff6b6b', '#50c878', '#ffb347', '#da70d6', '#40e0d0'];
@@ -78,6 +100,7 @@ export function TimeSeriesPlot({
   selectedAnnotationId,
   onSelectAnnotation,
   onAddAnnotation,
+  onViewportChange,
 }: Props) {
   const { activeLabel, pendingAnnotation, setPendingAnnotation } = useAppStore();
 
@@ -209,6 +232,7 @@ export function TimeSeriesPlot({
         }}
         style={{ width: '100%' }}
         onClick={activeLabel ? handleClick : handleShapeClick}
+        onViewportChange={onViewportChange}
       />
     </div>
   );
