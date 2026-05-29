@@ -80,21 +80,24 @@ test('label-app smoke: SPA mounts, dataset navigates, Plotly renders', async ({ 
   await expect(page.getByRole('heading', { name: 'Label Tool', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Datasets' })).toBeVisible();
 
-  // 2. Bundle hash check — new (round-4) build is `index-DLWr2YGZ.js`.
+  // 2. Bundle hash check — current build is `index-CvyWzt28.js` (adds the
+  // "Sync from nesso" button to RecordingView).
   // Round-1 build was `index-DvIZqgSz.js` (slot-swap bug),
   // Round-2 was `index-C81d9LAA.js` (ternary fold bug),
-  // Round-3 was `index-Cb-hrg5U.js` (still had react-plotly.js wrapper bug).
-  // Round-4 swaps the wrapper for a ~25-line window.Plotly.react/purge component.
+  // Round-3 was `index-Cb-hrg5U.js` (still had react-plotly.js wrapper bug),
+  // Round-4 was `index-DLWr2YGZ.js` (window.Plotly.react/purge rewrite).
   // Confirm at least one /assets/index-*.js loaded, none match the old hashes,
   // and the new hash is present.
   const indexBundles = scriptSrcs.filter((s) => /\/assets\/index-[A-Za-z0-9_-]+\.js/.test(s));
   expect(indexBundles, `expected an /assets/index-*.js bundle to load, got: ${scriptSrcs.join(', ')}`)
     .not.toHaveLength(0);
-  const oldBundles = indexBundles.filter((s) => /\/assets\/index-(DvIZqgSz|C81d9LAA|Cb-hrg5U)\.js/.test(s));
-  expect(oldBundles, `old round-1/2/3 bundle still being served: ${oldBundles.join(', ')}`)
+  const oldBundles = indexBundles.filter((s) =>
+    /\/assets\/index-(DvIZqgSz|C81d9LAA|Cb-hrg5U|DLWr2YGZ)\.js/.test(s),
+  );
+  expect(oldBundles, `old bundle still being served: ${oldBundles.join(', ')}`)
     .toHaveLength(0);
-  const newBundles = indexBundles.filter((s) => /\/assets\/index-DLWr2YGZ\.js/.test(s));
-  expect(newBundles, `expected new index-DLWr2YGZ.js bundle, got: ${indexBundles.join(', ')}`)
+  const newBundles = indexBundles.filter((s) => /\/assets\/index-CvyWzt28\.js/.test(s));
+  expect(newBundles, `expected new index-CvyWzt28.js bundle, got: ${indexBundles.join(', ')}`)
     .not.toHaveLength(0);
   console.log('Bundle(s) loaded:', newBundles.join(', '));
 
