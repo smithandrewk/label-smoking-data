@@ -19,13 +19,14 @@ def create_app():
 
     database.init_db()
 
-    from .routes import datasets, recordings, projects, annotations, models, exports
+    from .routes import datasets, recordings, projects, annotations, models, exports, nesso
     app.register_blueprint(datasets.bp)
     app.register_blueprint(recordings.bp)
     app.register_blueprint(projects.bp)
     app.register_blueprint(annotations.bp)
     app.register_blueprint(models.bp)
     app.register_blueprint(exports.bp)
+    app.register_blueprint(nesso.bp)
 
     @app.route('/api/health')
     def health():

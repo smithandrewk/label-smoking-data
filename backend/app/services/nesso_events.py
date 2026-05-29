@@ -139,6 +139,36 @@ def delete_label(*, event_id: str) -> None:
         conn.execute("DELETE FROM events WHERE id = %s", (event_id,))
 
 
+def list_devices() -> list[dict]:
+    """Catalog of nesso devices available for import. Surfaces friendly
+    name + IMU coverage span so the UI can show useful chips."""
+    with psycopg.connect(**_conn_kwargs()) as conn:
+        rows = conn.execute(
+            """
+            SELECT d.id,
+                   d.friendly_name,
+                   COUNT(r.*) AS imu_sample_count,
+                   MIN(r.ts) AS imu_earliest,
+                   MAX(r.ts) AS imu_latest
+            FROM devices d
+            LEFT JOIN raw_imu r ON r.device_id = d.id
+            GROUP BY d.id, d.friendly_name
+            ORDER BY MAX(r.ts) DESC NULLS LAST
+            """
+        ).fetchall()
+    out: list[dict] = []
+    for row in rows:
+        id_, name, n, earliest, latest = row
+        out.append({
+            "id": str(id_),
+            "friendly_name": name,
+            "imu_sample_count": int(n) if n is not None else 0,
+            "imu_earliest": earliest.isoformat() if earliest else None,
+            "imu_latest": latest.isoformat() if latest else None,
+        })
+    return out
+
+
 def list_labels_in_window(
     *,
     device_id: str,

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { detectFormat, importDataset } from '../../api/datasets';
 import type { DetectResult } from '../../types';
+import { NessoImporter } from './NessoImporter';
 
 export function DatasetImporter() {
   const [path, setPath] = useState('');
@@ -32,6 +33,8 @@ export function DatasetImporter() {
 
   return (
     <div className="import-wizard">
+      <NessoImporter />
+      <div style={{ height: 1, background: '#222', margin: '12px 0' }} />
       <div className="import-step">
         <h3>1. Source Path</h3>
         <div className="form-group">
