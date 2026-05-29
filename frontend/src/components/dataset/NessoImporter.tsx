@@ -21,12 +21,6 @@ function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-function formatCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
-  return String(n);
-}
-
 export function NessoImporter() {
   const { setSelectedDataset, setSelectedRecording, setSidebarView } = useAppStore();
   const queryClient = useQueryClient();
@@ -93,7 +87,7 @@ export function NessoImporter() {
           </option>
           {devices?.map((d) => (
             <option key={d.id} value={d.id}>
-              {d.friendly_name || shortId(d.id)} — {formatCount(d.imu_sample_count)} samples
+              {d.friendly_name || shortId(d.id)}
             </option>
           ))}
         </select>

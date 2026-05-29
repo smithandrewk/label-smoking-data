@@ -141,32 +141,30 @@ def delete_label(*, event_id: str) -> None:
 
 def list_devices() -> list[dict]:
     """Catalog of nesso devices available for import. Surfaces friendly
-    name + IMU coverage span so the UI can show useful chips."""
+    name + IMU coverage span (earliest/latest ts) so the UI can show
+    useful chips. Sample count is intentionally skipped — COUNT(*) on
+    raw_imu is O(rows) and the table has 100s of millions of rows."""
     with psycopg.connect(**_conn_kwargs()) as conn:
-        rows = conn.execute(
-            """
-            SELECT d.id,
-                   d.friendly_name,
-                   COUNT(r.*) AS imu_sample_count,
-                   MIN(r.ts) AS imu_earliest,
-                   MAX(r.ts) AS imu_latest
-            FROM devices d
-            LEFT JOIN raw_imu r ON r.device_id = d.id
-            GROUP BY d.id, d.friendly_name
-            ORDER BY MAX(r.ts) DESC NULLS LAST
-            """
+        # Two cheap queries instead of one expensive aggregate join.
+        # Per-device min/max ts uses the (device_id, ts) index nesso
+        # already maintains on raw_imu.
+        devices = conn.execute(
+            "SELECT id, friendly_name FROM devices ORDER BY friendly_name NULLS LAST"
         ).fetchall()
-    out: list[dict] = []
-    for row in rows:
-        id_, name, n, earliest, latest = row
-        out.append({
-            "id": str(id_),
-            "friendly_name": name,
-            "imu_sample_count": int(n) if n is not None else 0,
-            "imu_earliest": earliest.isoformat() if earliest else None,
-            "imu_latest": latest.isoformat() if latest else None,
-        })
-    return out
+        out: list[dict] = []
+        for id_, name in devices:
+            row = conn.execute(
+                "SELECT MIN(ts), MAX(ts) FROM raw_imu WHERE device_id = %s",
+                (id_,),
+            ).fetchone()
+            earliest, latest = row if row else (None, None)
+            out.append({
+                "id": str(id_),
+                "friendly_name": name,
+                "imu_earliest": earliest.isoformat() if earliest else None,
+                "imu_latest": latest.isoformat() if latest else None,
+            })
+        return out
 
 
 def list_labels_in_window(

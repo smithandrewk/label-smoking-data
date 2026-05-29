@@ -19,7 +19,6 @@ export const deleteDataset = (id: number) =>
 export interface NessoDevice {
   id: string;
   friendly_name: string | null;
-  imu_sample_count: number;
   imu_earliest: string | null;
   imu_latest: string | null;
 }
