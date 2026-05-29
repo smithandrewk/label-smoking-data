@@ -70,6 +70,31 @@ def import_dataset():
         return jsonify({'error': str(e)}), 500
 
 
+@bp.route('/import_nesso', methods=['POST'])
+def import_nesso():
+    """Import a (device_id, time window) slice from nesso's Postgres.
+
+    Body: {"device_id": "<uuid>", "since": "<iso8601>", "until": "<iso8601>", "name": "..."}
+    Builds the nesso:// URI for NessoPgAdapter and reuses the standard
+    import pipeline.
+    """
+    data = request.get_json() or {}
+    device_id = data.get('device_id')
+    since = data.get('since')
+    until = data.get('until')
+    name = data.get('name')
+    if not all([device_id, since, until, name]):
+        return jsonify({'error': 'device_id, since, until, name are required'}), 400
+    uri = f"nesso://{device_id}?since={since}&until={until}"
+    try:
+        result = import_service.import_dataset(uri, name, registry, format_hint='nesso_pg')
+        return jsonify(result), 201 if not result['duplicate'] else 200
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp.route('/<int:dataset_id>', methods=['DELETE'])
 def delete_dataset(dataset_id):
     conn = database.get_connection()

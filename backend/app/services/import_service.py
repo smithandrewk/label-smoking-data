@@ -10,9 +10,16 @@ from ..adapters.base import ImportedRecording, AdapterRegistry
 
 
 def compute_dir_hash(path: str) -> str:
-    """Compute a hash of directory contents for dedup."""
-    h = hashlib.sha256()
+    """Compute a hash of directory contents for dedup.
+
+    Non-filesystem source paths (e.g. `nesso://...` URIs) hash the
+    string itself, since the adapter encodes its dedup-relevant params
+    directly in the path.
+    """
     p = Path(path)
+    if not p.exists():
+        return hashlib.sha256(path.encode()).hexdigest()[:16]
+    h = hashlib.sha256()
     for f in sorted(p.rglob('*')):
         if f.is_file():
             h.update(str(f.relative_to(p)).encode())
