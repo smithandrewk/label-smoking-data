@@ -17,7 +17,6 @@ export function AnnotationToolbar({
   labelSchema,
   annotations,
   onAddLabel,
-  onRemoveLabel,
   onDeleteAnnotation,
   selectedAnnotationId,
 }: Props) {

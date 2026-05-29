@@ -13,7 +13,6 @@ interface Props {
 }
 
 const CHANNEL_COLORS = ['#4a9eff', '#ff6b6b', '#50c878', '#ffb347', '#da70d6', '#40e0d0'];
-const DEFAULT_ANNOTATION_COLOR = 'rgba(255, 200, 100, 0.25)';
 
 function getLabelColor(labelName: string, labelSchema: LabelDef[]): string {
   const def = labelSchema.find((l) => l.name === labelName);
@@ -134,7 +133,7 @@ export function TimeSeriesPlot({
           plot_bgcolor: '#111',
           font: { color: '#888' },
           xaxis: {
-            title: 'Time (s)',
+            title: { text: 'Time (s)' },
             color: '#666',
             gridcolor: '#1a1a1a',
             zerolinecolor: '#2a2a2a',
