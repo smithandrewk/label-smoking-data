@@ -9,7 +9,7 @@ import { AnnotationToolbar } from '../visualization/AnnotationToolbar';
 import { ModelScorer } from '../model/ModelScorer';
 import { ExportButton } from '../export/ExportButton';
 import { KeyboardHelp } from '../layout/KeyboardHelp';
-import type { LabelDef } from '../../types';
+import type { Annotation, LabelDef } from '../../types';
 
 interface Props {
   recordingId: number;
@@ -137,17 +137,69 @@ export function RecordingView({ recordingId }: Props) {
 
   const labelSchema: LabelDef[] = project?.label_schema || [];
 
+  // Toast for mutation failures. Cleared on next success.
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
+  const annotationsKey = useMemo(
+    () => ['annotations', { recording_id: recordingId, project_id: projectId }] as const,
+    [recordingId, projectId],
+  );
+
+  type CreateInput = Parameters<typeof createAnnotation>[0];
   const createMutation = useMutation({
     mutationFn: createAnnotation,
+    // Optimistic: insert a temp row with negative id, swap on success.
+    onMutate: async (vars: CreateInput) => {
+      await queryClient.cancelQueries({ queryKey: ['annotations'] });
+      const prev = queryClient.getQueryData<Annotation[]>(annotationsKey);
+      const tempId = -Math.floor(Math.random() * 1e9);
+      const optimistic: Annotation = {
+        id: tempId,
+        recording_id: vars.recording_id,
+        project_id: vars.project_id,
+        label_name: vars.label_name,
+        start_ns: vars.start_ns,
+        end_ns: vars.end_ns,
+        confidence: null,
+        source: vars.source || 'manual',
+        nesso_event_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      queryClient.setQueryData<Annotation[]>(annotationsKey, (old) => [
+        ...(old || []),
+        optimistic,
+      ]);
+      return { prev, tempId };
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(annotationsKey, ctx.prev);
+      setMutationError(`Save failed: ${(err as Error).message}`);
+    },
     onSuccess: () => {
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ['annotations'] });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteAnnotation,
+    // Optimistic remove with rollback on failure.
+    onMutate: async (id: number) => {
+      await queryClient.cancelQueries({ queryKey: ['annotations'] });
+      const prev = queryClient.getQueryData<Annotation[]>(annotationsKey);
+      queryClient.setQueryData<Annotation[]>(annotationsKey, (old) =>
+        (old || []).filter((a) => a.id !== id),
+      );
+      return { prev };
+    },
+    onError: (err, _id, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(annotationsKey, ctx.prev);
+      setMutationError(`Delete failed: ${(err as Error).message}`);
+    },
     onSuccess: () => {
       setSelectedAnnotationId(null);
+      setMutationError(null);
       queryClient.invalidateQueries({ queryKey: ['annotations'] });
     },
   });
@@ -273,6 +325,20 @@ export function RecordingView({ recordingId }: Props) {
               &middot; {recording.sample_rate_hz}Hz
             </div>
           )}
+          {annotations && (
+            <span
+              className="badge"
+              data-testid="annotation-count"
+              title="Annotations on this recording (current project)"
+              style={{
+                background: '#dbeafe', color: '#1d4ed8',
+                fontWeight: 500,
+              }}
+            >
+              {annotations.length} label{annotations.length === 1 ? '' : 's'}
+              {(createMutation.isPending || deleteMutation.isPending) && ' · saving…'}
+            </span>
+          )}
           <button
             className="btn btn-sm"
             title="Keyboard shortcuts (?)"
@@ -378,6 +444,30 @@ export function RecordingView({ recordingId }: Props) {
             }}
           >
             Press <code>d</code> again to delete · Esc to cancel
+          </div>
+        )}
+
+        {mutationError && (
+          <div
+            data-testid="mutation-error"
+            role="alert"
+            style={{
+              position: 'fixed', bottom: 20, left: 20, zIndex: 800,
+              background: '#fef2f2', color: '#991b1b',
+              border: '1px solid #fecaca', borderRadius: 6,
+              padding: '8px 14px', fontSize: 13,
+              boxShadow: '0 6px 16px rgba(15,23,42,0.18)',
+              maxWidth: 460,
+            }}
+          >
+            {mutationError}
+            <button
+              className="btn btn-sm"
+              style={{ marginLeft: 12 }}
+              onClick={() => setMutationError(null)}
+            >
+              dismiss
+            </button>
           </div>
         )}
 

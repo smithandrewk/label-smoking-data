@@ -49,6 +49,8 @@ export interface Annotation {
   end_ns: number;
   confidence: number | null;
   source: string;
+  // nullable on smoking-detection annotations; UUID on nesso-mirrored ones
+  nesso_event_id?: string | null;
   created_at: string;
   updated_at: string;
 }
