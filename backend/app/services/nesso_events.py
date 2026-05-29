@@ -137,3 +137,52 @@ def update_label(
 def delete_label(*, event_id: str) -> None:
     with psycopg.connect(**_conn_kwargs()) as conn:
         conn.execute("DELETE FROM events WHERE id = %s", (event_id,))
+
+
+def list_labels_in_window(
+    *,
+    device_id: str,
+    start_ns: int,
+    end_ns: int,
+) -> list[dict]:
+    """Pull existing label.* events from nesso for the (device, window).
+
+    Used by label-app's sync endpoint to surface cogsworth, firmware-tap,
+    and manual-UI labels inside label-app. Returns a list of dicts
+    suitable for INSERT into label's annotations table.
+    """
+    ts_start = _ns_to_dt(start_ns)
+    ts_end = _ns_to_dt(end_ns)
+    with psycopg.connect(**_conn_kwargs()) as conn:
+        rows = conn.execute(
+            """
+            SELECT id, ts_start, ts_end, type, attributes
+            FROM events
+            WHERE device_id = %s
+              AND type LIKE 'label.%%'
+              AND ts_start <= %s
+              AND COALESCE(ts_end, ts_start) >= %s
+            ORDER BY ts_start ASC
+            """,
+            (device_id, ts_end, ts_start),
+        ).fetchall()
+
+    out: list[dict] = []
+    for row in rows:
+        event_id, ts_s, ts_e, type_, attrs = row
+        attrs = attrs or {}
+        # Point events (ts_end NULL or == ts_start) stay zero-length; the
+        # API's labels endpoint already normalizes NULL → ts_start.
+        if ts_e is None:
+            ts_e = ts_s
+        kind = type_[len("label."):] if type_.startswith("label.") else type_
+        out.append({
+            "nesso_event_id": str(event_id),
+            "label_name": kind,
+            "start_ns": int(ts_s.timestamp() * 1e9),
+            "end_ns": int(ts_e.timestamp() * 1e9),
+            "labeler": attrs.get("labeler", "unknown"),
+            "source": f"nesso-{attrs.get('labeler', 'unknown')}",
+            "confidence": attrs.get("confidence"),
+        })
+    return out
