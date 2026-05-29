@@ -1,16 +1,32 @@
 import { useCallback, useRef } from 'react';
-// react-plotly.js 2.6's auto-bundled default export breaks under React 19
-// (the factory output gets shaped as an object, throwing React error #130).
-// Use the explicit factory + a pre-bundled Plotly instance so we skip
-// the source-tree `buffer/`-needing modules entirely.
-import createPlotlyComponent from 'react-plotly.js/factory';
-// @ts-expect-error - plotly.js-dist-min ships no types; this is the prebuilt browser bundle
-import Plotly from 'plotly.js-dist-min';
+// react-plotly.js 2.6's auto-bundled entry pulls plotly.js source tree
+// (which references `self` + `buffer/` and crashes under React 19 + Vite).
+// We use the factory + the pre-built dist-min Plotly bundle instead.
+//
+// Subtle: Rolldown's CJS-interop has been observed to swap the two
+// imports' bundle slots in this exact pattern, emitting
+// `Plotly(createPlotlyComponent)` instead of `createPlotlyComponent(Plotly)`.
+// To stay correct regardless, we identify the factory vs the Plotly
+// namespace at runtime — the factory is a function, the namespace is
+// an object with `.newPlot`.
+import * as factoryModule from 'react-plotly.js/factory';
+// @ts-expect-error - plotly.js-dist-min ships no types; prebuilt browser bundle
+import * as plotlyModule from 'plotly.js-dist-min';
 import type { RecordingData, Annotation, LabelDef } from '../../types';
 import { useAppStore } from '../../store';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Plot = createPlotlyComponent(Plotly) as any;
+function _unwrap(m: any): any {
+  return m && typeof m === 'object' && 'default' in m ? m.default : m;
+}
+const _a = _unwrap(factoryModule);
+const _b = _unwrap(plotlyModule);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _factory: any = typeof _a === 'function' ? _a : _b;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const _plotly: any = typeof _a === 'function' ? _b : _a;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const Plot = _factory(_plotly) as any;
 
 interface Props {
   data: RecordingData;
