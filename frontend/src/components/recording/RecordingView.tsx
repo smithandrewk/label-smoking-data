@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getRecording, getRecordingData, listRecordings, syncNessoLabels } from '../../api/recordings';
 import { listAnnotations, createAnnotation, deleteAnnotation } from '../../api/annotations';
@@ -8,6 +8,7 @@ import { TimeSeriesPlot } from '../visualization/TimeSeriesPlot';
 import { AnnotationToolbar } from '../visualization/AnnotationToolbar';
 import { ModelScorer } from '../model/ModelScorer';
 import { ExportButton } from '../export/ExportButton';
+import { KeyboardHelp } from '../layout/KeyboardHelp';
 import type { LabelDef } from '../../types';
 
 interface Props {
@@ -15,8 +16,12 @@ interface Props {
 }
 
 export function RecordingView({ recordingId }: Props) {
-  const { setSelectedRecording, selectedProjectId, selectedDatasetId, activeLabel, setPendingAnnotation } = useAppStore();
+  const { setSelectedRecording, setActiveLabel, selectedProjectId, selectedDatasetId, activeLabel, setPendingAnnotation } = useAppStore();
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<number | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [plotFullscreen, setPlotFullscreen] = useState(false);
+  // Vim-style two-press confirm for `d` delete.
+  const [pendingDelete, setPendingDelete] = useState(false);
   const queryClient = useQueryClient();
 
   // Get the project to use — default to __imported__ if no project selected
@@ -55,24 +60,80 @@ export function RecordingView({ recordingId }: Props) {
   const nextRecording = currentIndex >= 0 && siblingRecordings && currentIndex < siblingRecordings.length - 1
     ? siblingRecordings[currentIndex + 1] : null;
 
-  // Keyboard navigation
+  // Keyboard navigation + shortcuts. See KeyboardHelp for the canonical list.
+  const labelSchemaRef = useRef<LabelDef[]>([]);
+  labelSchemaRef.current = project?.label_schema || [];
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key === 'ArrowLeft' && prevRecording) {
+      // Modifier-only presses, no-op
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+      // Help modal toggle
+      if (e.key === '?') {
+        setHelpOpen((v) => !v);
+        return;
+      }
+
+      // Navigation: arrows + n/p aliases
+      if ((e.key === 'ArrowLeft' || e.key === 'p') && prevRecording) {
         setSelectedRecording(prevRecording.id);
-      } else if (e.key === 'ArrowRight' && nextRecording) {
+        return;
+      }
+      if ((e.key === 'ArrowRight' || e.key === 'n') && nextRecording) {
         setSelectedRecording(nextRecording.id);
-      } else if (e.key === 'Escape') {
+        return;
+      }
+
+      // Escape: clear modal/selection/pending
+      if (e.key === 'Escape') {
+        setHelpOpen(false);
         setSelectedAnnotationId(null);
         setPendingAnnotation(null);
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedAnnotationId) {
-        deleteMutation.mutate(selectedAnnotationId);
+        setPendingDelete(false);
+        return;
+      }
+
+      // Fullscreen toggle for the plot
+      if (e.key === 'f') {
+        setPlotFullscreen((v) => !v);
+        return;
+      }
+
+      // 1-9: activate label chip by index. 0: deactivate.
+      if (/^[1-9]$/.test(e.key)) {
+        const idx = Number(e.key) - 1;
+        const chip = labelSchemaRef.current[idx];
+        if (chip) setActiveLabel(activeLabel?.name === chip.name ? null : chip);
+        return;
+      }
+      if (e.key === '0') {
+        setActiveLabel(null);
+        return;
+      }
+
+      // Delete: Backspace/Delete immediate; `d` is vim-style two-press confirm
+      if (selectedAnnotationId !== null) {
+        if (e.key === 'Backspace' || e.key === 'Delete') {
+          deleteMutation.mutate(selectedAnnotationId);
+          setPendingDelete(false);
+          return;
+        }
+        if (e.key === 'd') {
+          if (pendingDelete) {
+            deleteMutation.mutate(selectedAnnotationId);
+            setPendingDelete(false);
+          } else {
+            setPendingDelete(true);
+            window.setTimeout(() => setPendingDelete(false), 1500);
+          }
+          return;
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [prevRecording, nextRecording, selectedAnnotationId]);
+  }, [prevRecording, nextRecording, selectedAnnotationId, activeLabel, pendingDelete, setActiveLabel, setSelectedRecording, setPendingAnnotation]);
 
   const labelSchema: LabelDef[] = project?.label_schema || [];
 
@@ -204,13 +265,23 @@ export function RecordingView({ recordingId }: Props) {
             </span>
           )}
         </div>
-        {recording && (
-          <div style={{ fontSize: 13, color: '#6b7280' }}>
-            {recording.sample_count.toLocaleString()} samples
-            &middot; {formatDuration(recording.duration_seconds)}
-            &middot; {recording.sample_rate_hz}Hz
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {recording && (
+            <div style={{ fontSize: 13, color: '#6b7280' }}>
+              {recording.sample_count.toLocaleString()} samples
+              &middot; {formatDuration(recording.duration_seconds)}
+              &middot; {recording.sample_rate_hz}Hz
+            </div>
+          )}
+          <button
+            className="btn btn-sm"
+            title="Keyboard shortcuts (?)"
+            data-testid="open-keyboard-help"
+            onClick={() => setHelpOpen(true)}
+          >
+            ?
+          </button>
+        </div>
       </div>
       <div className="main-content">
         {!projectId && (
@@ -263,15 +334,54 @@ export function RecordingView({ recordingId }: Props) {
             Loading signal data...
           </div>
         ) : recordingData ? (
-          <TimeSeriesPlot
-            data={recordingData}
-            annotations={annotations || []}
-            labelSchema={labelSchema}
-            selectedAnnotationId={selectedAnnotationId}
-            onSelectAnnotation={setSelectedAnnotationId}
-            onAddAnnotation={handleAddAnnotation}
-          />
+          <div
+            data-testid="plot-fullscreen-wrap"
+            style={
+              plotFullscreen
+                ? {
+                    position: 'fixed', inset: 0, zIndex: 900,
+                    background: '#ffffff', padding: 20, overflow: 'auto',
+                  }
+                : undefined
+            }
+          >
+            {plotFullscreen && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                <button
+                  className="btn btn-sm"
+                  onClick={() => setPlotFullscreen(false)}
+                  title="Exit fullscreen (f)"
+                >
+                  ⤡ Exit fullscreen
+                </button>
+              </div>
+            )}
+            <TimeSeriesPlot
+              data={recordingData}
+              annotations={annotations || []}
+              labelSchema={labelSchema}
+              selectedAnnotationId={selectedAnnotationId}
+              onSelectAnnotation={setSelectedAnnotationId}
+              onAddAnnotation={handleAddAnnotation}
+            />
+          </div>
         ) : null}
+
+        {pendingDelete && selectedAnnotationId !== null && (
+          <div
+            data-testid="pending-delete-hint"
+            style={{
+              position: 'fixed', bottom: 20, right: 20, zIndex: 800,
+              background: '#1f2937', color: '#fde68a',
+              padding: '8px 14px', borderRadius: 6, fontSize: 13,
+              boxShadow: '0 6px 16px rgba(15,23,42,0.18)',
+            }}
+          >
+            Press <code>d</code> again to delete · Esc to cancel
+          </div>
+        )}
+
+        <KeyboardHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
 
         {annotations && annotations.length > 0 && (
           <div style={{ marginTop: 12 }}>
