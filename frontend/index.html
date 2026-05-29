@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>frontend</title>
+    <!--
+      Plotly.js loaded from CDN as a global. We tried bundling it via
+      react-plotly.js + factory + plotly.js-dist-min and Rolldown's CJS
+      interop kept emitting calls with swapped/folded arguments,
+      surfacing as React error #130 / "intermediate value is not a
+      function". Loading globally bypasses all bundler interop.
+    -->
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
   </head>
   <body>
     <div id="root"></div>
