@@ -71,6 +71,9 @@ CREATE TABLE IF NOT EXISTS annotations (
     end_ns INTEGER NOT NULL,
     confidence REAL,
     source TEXT DEFAULT 'manual',
+    -- Write-through link to nesso's events.id when the recording is
+    -- nesso-imported. NULL for smoking-detection annotations etc.
+    nesso_event_id TEXT UNIQUE,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
 );
@@ -108,10 +111,28 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
+def _ensure_column(conn, table: str, column: str, decl: str) -> None:
+    """SQLite idempotent ADD COLUMN — checks PRAGMA table_info first.
+
+    Used for additive migrations against deployments that predate a
+    schema change. New installs get the column via SCHEMA_SQL directly.
+    """
+    cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+
+
 def init_db():
     conn = get_connection()
     try:
         conn.executescript(SCHEMA_SQL)
+        # Additive migrations for existing deploys
+        _ensure_column(conn, "annotations", "nesso_event_id", "TEXT")
+        # UNIQUE constraint can't be added via ALTER; create a unique index instead
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_annotations_nesso_event_id "
+            "ON annotations(nesso_event_id) WHERE nesso_event_id IS NOT NULL"
+        )
         # Check if version exists
         cur = conn.execute("SELECT MAX(version) FROM schema_version")
         row = cur.fetchone()
