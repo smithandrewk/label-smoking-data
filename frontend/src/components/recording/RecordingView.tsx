@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRecording, getRecordingData, listRecordings } from '../../api/recordings';
+import { getRecording, getRecordingData, listRecordings, syncNessoLabels } from '../../api/recordings';
 import { listAnnotations, createAnnotation, deleteAnnotation } from '../../api/annotations';
 import { getProject, updateProject } from '../../api/projects';
 import { useAppStore } from '../../store';
@@ -95,6 +95,40 @@ export function RecordingView({ recordingId }: Props) {
     mutationFn: (data: { label_schema: LabelDef[] }) => updateProject(projectId!, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['project', projectId] });
+    },
+  });
+
+  // Nesso-imported recordings expose their origin in metadata. We show
+  // the "Sync from nesso" button only for those — non-nesso datasets
+  // (smoking-detection etc.) don't have a device_id to pull from.
+  const isNessoRecording = useMemo(() => {
+    if (!recording?.metadata) return false;
+    try {
+      const m = JSON.parse(recording.metadata);
+      return m?.source === 'nesso_pg' && typeof m?.device_id === 'string';
+    } catch {
+      return false;
+    }
+  }, [recording?.metadata]);
+
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const syncNessoMutation = useMutation({
+    mutationFn: () => syncNessoLabels(recordingId, projectId!),
+    onSuccess: (result) => {
+      const { inserted, skipped_existing } = result;
+      setSyncStatus(
+        inserted === 0
+          ? `Up to date — ${skipped_existing} already imported.`
+          : `Pulled ${inserted} new label${inserted === 1 ? '' : 's'} from nesso` +
+            (skipped_existing > 0 ? ` (${skipped_existing} already present).` : '.'),
+      );
+      queryClient.invalidateQueries({ queryKey: ['annotations'] });
+      window.setTimeout(() => setSyncStatus(null), 6000);
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSyncStatus(`Sync failed: ${msg}`);
+      window.setTimeout(() => setSyncStatus(null), 8000);
     },
   });
 
@@ -197,7 +231,28 @@ export function RecordingView({ recordingId }: Props) {
               selectedAnnotationId={selectedAnnotationId}
             />
             <div className="annotation-toolbar" style={{ justifyContent: 'space-between' }}>
-              <ModelScorer recordingId={recordingId} projectId={projectId} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <ModelScorer recordingId={recordingId} projectId={projectId} />
+                {isNessoRecording && (
+                  <button
+                    className="btn btn-sm"
+                    data-testid="sync-nesso"
+                    disabled={syncNessoMutation.isPending}
+                    title="Pull existing label.* events from nesso for this recording's window"
+                    onClick={() => syncNessoMutation.mutate()}
+                  >
+                    {syncNessoMutation.isPending ? 'Syncing…' : '⇣ Sync from nesso'}
+                  </button>
+                )}
+                {syncStatus && (
+                  <span
+                    data-testid="sync-status"
+                    style={{ fontSize: 12, color: '#888' }}
+                  >
+                    {syncStatus}
+                  </span>
+                )}
+              </div>
               <ExportButton recordingId={recordingId} projectId={projectId} />
             </div>
           </>
