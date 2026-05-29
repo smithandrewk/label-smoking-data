@@ -39,7 +39,7 @@ export function AnnotationToolbar({
 
   return (
     <div className="annotation-toolbar">
-      <span style={{ fontSize: 12, color: '#666', marginRight: 4 }}>Labels:</span>
+      <span style={{ fontSize: 12, color: '#6b7280', marginRight: 4 }}>Labels:</span>
 
       {labelSchema.map((label) => (
         <div
@@ -65,8 +65,8 @@ export function AnnotationToolbar({
             onChange={(e) => setNewLabelName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddLabel()}
             style={{
-              padding: '3px 8px', fontSize: 12, background: '#1a1a1a',
-              border: '1px solid #333', borderRadius: 4, color: '#e0e0e0', width: 120,
+              padding: '3px 8px', fontSize: 12, background: '#ffffff',
+              border: '1px solid #d1d5db', borderRadius: 4, color: '#1f2937', width: 120,
             }}
             autoFocus
           />
@@ -80,7 +80,7 @@ export function AnnotationToolbar({
       <div style={{ flex: 1 }} />
 
       {annotationMode === 'add' && activeLabel && (
-        <span style={{ fontSize: 12, color: '#4a9eff' }}>
+        <span style={{ fontSize: 12, color: '#2563eb' }}>
           Click plot to place annotation start, click again for end
         </span>
       )}
@@ -88,14 +88,14 @@ export function AnnotationToolbar({
       {selectedAnnotationId && (
         <button
           className="btn btn-sm"
-          style={{ color: '#ff6b6b', borderColor: '#4a2020' }}
+          style={{ color: '#dc2626', borderColor: '#fca5a5' }}
           onClick={() => onDeleteAnnotation(selectedAnnotationId)}
         >
           Delete Selected
         </button>
       )}
 
-      <span style={{ fontSize: 11, color: '#555' }}>
+      <span style={{ fontSize: 11, color: '#9ca3af' }}>
         {annotations.length} annotation{annotations.length !== 1 ? 's' : ''}
       </span>
     </div>

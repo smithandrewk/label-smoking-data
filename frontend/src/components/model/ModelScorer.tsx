@@ -47,7 +47,7 @@ export function ModelScorer({ recordingId, projectId }: Props) {
 
   if (!models?.length) {
     return (
-      <div style={{ fontSize: 13, color: '#666', padding: '8px 0' }}>
+      <div style={{ fontSize: 13, color: '#9ca3af', padding: '8px 0' }}>
         No models registered. Add model files to the models directory and register via API.
       </div>
     );
@@ -55,7 +55,7 @@ export function ModelScorer({ recordingId, projectId }: Props) {
 
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-      <span style={{ fontSize: 12, color: '#666' }}>Score with:</span>
+      <span style={{ fontSize: 12, color: '#9ca3af' }}>Score with:</span>
       {models.map((model) => (
         <button
           key={model.id}

@@ -108,7 +108,7 @@ export function TimeSeriesPlot({
       fillcolor: color + (isSelected ? '55' : '33'),
       line: {
         width: isSelected ? 2 : 1,
-        color: isSelected ? '#fff' : color + '99',
+        color: isSelected ? '#1f2937' : color + '99',
       },
     };
   });
@@ -179,19 +179,19 @@ export function TimeSeriesPlot({
           autosize: true,
           height: 400,
           margin: { l: 50, r: 20, t: 10, b: 40 },
-          paper_bgcolor: '#111',
-          plot_bgcolor: '#111',
-          font: { color: '#888' },
+          paper_bgcolor: '#ffffff',
+          plot_bgcolor: '#ffffff',
+          font: { color: '#4b5563' },
           xaxis: {
             title: { text: 'Time (s)' },
-            color: '#666',
-            gridcolor: '#1a1a1a',
-            zerolinecolor: '#2a2a2a',
+            color: '#6b7280',
+            gridcolor: '#e5e7eb',
+            zerolinecolor: '#d1d5db',
           },
           yaxis: {
-            color: '#666',
-            gridcolor: '#1a1a1a',
-            zerolinecolor: '#2a2a2a',
+            color: '#6b7280',
+            gridcolor: '#e5e7eb',
+            zerolinecolor: '#d1d5db',
           },
           legend: {
             orientation: 'h',

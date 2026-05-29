@@ -14,8 +14,8 @@ export function RecordingTable({ datasetId, projectId }: Props) {
     queryFn: () => listRecordings({ dataset_id: datasetId, project_id: projectId }),
   });
 
-  if (isLoading) return <div style={{ color: '#666' }}>Loading recordings...</div>;
-  if (!recordings?.length) return <div style={{ color: '#666' }}>No recordings found.</div>;
+  if (isLoading) return <div style={{ color: '#9ca3af' }}>Loading recordings...</div>;
+  if (!recordings?.length) return <div style={{ color: '#9ca3af' }}>No recordings found.</div>;
 
   const formatDuration = (seconds: number) => {
     if (seconds < 60) return `${seconds.toFixed(1)}s`;

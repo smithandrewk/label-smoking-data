@@ -199,13 +199,13 @@ export function RecordingView({ recordingId }: Props) {
             <span className="badge">{recording.participant_code}</span>
           )}
           {siblingRecordings && currentIndex >= 0 && (
-            <span style={{ fontSize: 12, color: '#555' }}>
+            <span style={{ fontSize: 12, color: '#9ca3af' }}>
               {currentIndex + 1} / {siblingRecordings.length}
             </span>
           )}
         </div>
         {recording && (
-          <div style={{ fontSize: 13, color: '#888' }}>
+          <div style={{ fontSize: 13, color: '#6b7280' }}>
             {recording.sample_count.toLocaleString()} samples
             &middot; {formatDuration(recording.duration_seconds)}
             &middot; {recording.sample_rate_hz}Hz
@@ -247,7 +247,7 @@ export function RecordingView({ recordingId }: Props) {
                 {syncStatus && (
                   <span
                     data-testid="sync-status"
-                    style={{ fontSize: 12, color: '#888' }}
+                    style={{ fontSize: 12, color: '#6b7280' }}
                   >
                     {syncStatus}
                   </span>
@@ -259,7 +259,7 @@ export function RecordingView({ recordingId }: Props) {
         )}
 
         {dataLoading ? (
-          <div style={{ color: '#666', padding: 40, textAlign: 'center' }}>
+          <div style={{ color: '#9ca3af', padding: 40, textAlign: 'center' }}>
             Loading signal data...
           </div>
         ) : recordingData ? (
@@ -315,7 +315,7 @@ export function RecordingView({ recordingId }: Props) {
                         {projectId && (
                           <button
                             className="btn btn-sm"
-                            style={{ color: '#ff6b6b', padding: '2px 6px' }}
+                            style={{ color: '#dc2626', padding: '2px 6px' }}
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteMutation.mutate(ann.id);

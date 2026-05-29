@@ -9,11 +9,11 @@ export function DatasetList() {
     queryFn: listDatasets,
   });
 
-  if (isLoading) return <div style={{ padding: 12, color: '#666' }}>Loading...</div>;
+  if (isLoading) return <div style={{ padding: 12, color: '#9ca3af' }}>Loading...</div>;
 
   if (!datasets?.length) {
     return (
-      <div style={{ padding: 12, color: '#666', fontSize: 13 }}>
+      <div style={{ padding: 12, color: '#9ca3af', fontSize: 13 }}>
         No datasets imported yet. Use the Import tab to add data.
       </div>
     );

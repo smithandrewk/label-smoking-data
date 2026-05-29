@@ -73,13 +73,13 @@ export function NessoImporter() {
   return (
     <div className="import-step" style={{ marginBottom: 12 }}>
       <h3>Import from nesso</h3>
-      <p style={{ fontSize: 12, color: '#888', marginTop: 0 }}>
+      <p style={{ fontSize: 12, color: '#6b7280', marginTop: 0 }}>
         Pull a raw IMU window from a nesso device as a new dataset.
         The recording materializes as parquet on the label-app volume.
       </p>
 
       <div className="form-group">
-        <label htmlFor="nesso-device" style={{ fontSize: 12, color: '#aaa' }}>Device</label>
+        <label htmlFor="nesso-device" style={{ fontSize: 12, color: '#4b5563' }}>Device</label>
         <select
           id="nesso-device"
           data-testid="nesso-device-select"
@@ -97,7 +97,7 @@ export function NessoImporter() {
           ))}
         </select>
         {selectedDevice && (
-          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
             coverage:{' '}
             {selectedDevice.imu_earliest?.slice(0, 16).replace('T', ' ') || '—'} →{' '}
             {selectedDevice.imu_latest?.slice(0, 16).replace('T', ' ') || '—'}
@@ -107,7 +107,7 @@ export function NessoImporter() {
 
       <div style={{ display: 'flex', gap: 8 }}>
         <div className="form-group" style={{ flex: 1 }}>
-          <label htmlFor="nesso-since" style={{ fontSize: 12, color: '#aaa' }}>Since (local)</label>
+          <label htmlFor="nesso-since" style={{ fontSize: 12, color: '#4b5563' }}>Since (local)</label>
           <input
             id="nesso-since"
             data-testid="nesso-since"
@@ -117,7 +117,7 @@ export function NessoImporter() {
           />
         </div>
         <div className="form-group" style={{ flex: 1 }}>
-          <label htmlFor="nesso-until" style={{ fontSize: 12, color: '#aaa' }}>Until (local)</label>
+          <label htmlFor="nesso-until" style={{ fontSize: 12, color: '#4b5563' }}>Until (local)</label>
           <input
             id="nesso-until"
             data-testid="nesso-until"
@@ -128,13 +128,13 @@ export function NessoImporter() {
         </div>
       </div>
       {minutesBetween > 0 && (
-        <div style={{ fontSize: 11, color: '#666' }}>
+        <div style={{ fontSize: 11, color: '#9ca3af' }}>
           window: {minutesBetween} min
         </div>
       )}
 
       <div className="form-group">
-        <label htmlFor="nesso-name" style={{ fontSize: 12, color: '#aaa' }}>Dataset name (optional)</label>
+        <label htmlFor="nesso-name" style={{ fontSize: 12, color: '#4b5563' }}>Dataset name (optional)</label>
         <input
           id="nesso-name"
           data-testid="nesso-name"
@@ -155,12 +155,12 @@ export function NessoImporter() {
       </button>
 
       {importMutation.isError && (
-        <div style={{ fontSize: 12, color: '#ff6b6b', marginTop: 8 }}>
+        <div style={{ fontSize: 12, color: '#dc2626', marginTop: 8 }}>
           {(importMutation.error as Error).message}
         </div>
       )}
       {importMutation.isSuccess && (
-        <div style={{ fontSize: 12, color: '#50c878', marginTop: 8 }} data-testid="nesso-import-success">
+        <div style={{ fontSize: 12, color: '#059669', marginTop: 8 }} data-testid="nesso-import-success">
           {importMutation.data.duplicate
             ? `Already imported as "${importMutation.data.dataset_name}".`
             : `Imported ${importMutation.data.recordings_imported} recording as "${importMutation.data.dataset_name}".`}

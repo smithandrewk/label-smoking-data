@@ -34,7 +34,7 @@ export function DatasetImporter() {
   return (
     <div className="import-wizard">
       <NessoImporter />
-      <div style={{ height: 1, background: '#222', margin: '12px 0' }} />
+      <div style={{ height: 1, background: '#e5e7eb', margin: '12px 0' }} />
       <div className="import-step">
         <h3>1. Source Path</h3>
         <div className="form-group">
